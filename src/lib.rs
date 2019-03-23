@@ -54,17 +54,18 @@ pub fn context(attr: TokenStream, item: TokenStream) -> TokenStream {
     let name = &input.ident;
     let body = &input.block;
 
-    // TODO: convert args to a vec of syn::BareFnArgName
-    let args: Vec<proc_macro2::Ident> = args.pairs().map(|arg| {
+    let inner_args: Vec<proc_macro2::Ident> = args.iter().map(|arg| {
+        dbg!(arg);
         syn::Ident::new("self", proc_macro2::Span::call_site())
     }).collect();
 
+    dbg!(inner_args);
 
     let result = quote! {
-        #constness #unsafety #asyncness fn #name(#args) #ret {
+        #constness #unsafety #asyncness fn #name() #ret {
             #input
 
-            #name(#args)
+            #name()
         }
     };
 
