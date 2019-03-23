@@ -1,0 +1,23 @@
+[package]
+name = "context-attribute"
+version = "1.0.0"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yoshuawuyts/context-attribute"
+documentation = "https://docs.rs/context-attribute"
+description = "Set the error context using doc comments."
+keywords = ["doc", "failure", "context", "error", "macro"]
+categories = ["development-tools"]
+authors = ["Yoshua Wuyts <yoshuawuyts@gmail.com>"]
+readme = "README.md"
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+failure = "0.1.5"
+syn = { version = "0.15", features = ["full"] }
+proc-macro2 = { version = "0.4.24", features = ["nightly"] }
+quote = "0.6"
+
+[dev-dependencies]
