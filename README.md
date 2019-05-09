@@ -2,18 +2,19 @@
 [![crates.io version][1]][2] [![build status][3]][4]
 [![downloads][5]][6] [![docs.rs docs][7]][8]
 
-Set the error context using doc comments.
+Set the error [`context`] using doc comments.
 
 This is useful because instead of writing manual error messages to provide context to an error, it
 automatically derives it from doc comments. This works especially well for async contexts, where
-stack traces may not be persisted past yield points and thread boundaries. But contexts do!
+stack traces may not be persisted past yield points and thread boundaries. But contexts do.
+
+[`context`]: https://docs.rs/failure/0.1.5/failure/trait.ResultExt.html#tymethod.context
 
 - [Documentation][8]
 - [Crates.io][2]
 - [Releases][releases]
 
 ## Examples
-__Basic usage__
 ```rust
 use context_attribute::context;
 use failure::{ensure, ResultExt};
@@ -34,6 +35,12 @@ fn main() -> Result<(), failure::Error> {
 
     Ok(())
 }
+```
+
+```txt
+$ cargo run --example square 12
+Error: ErrorMessage { msg: "Number was too large" }
+Square a number if it's less than 10.
 ```
 
 ## Installation

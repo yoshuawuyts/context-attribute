@@ -1,9 +1,39 @@
-//! Set the error context using doc comments.
+//!  Set the error [`context`] using doc comments.
 //!
-//! ## Example
+//! This is useful because instead of writing manual error messages to provide context to an error, it
+//! automatically derives it from doc comments. This works especially well for async contexts, where
+//! stack traces may not be persisted past yield points and thread boundaries. But contexts do.
+//!
+//! [`context`]: https://docs.rs/failure/0.1.5/failure/trait.ResultExt.html#tymethod.context
+//!
+//! ## Examples
 //!
 //! ```rust
-//! println!("hello world");
+//! use context_attribute::context;
+//! use failure::{ensure, ResultExt};
+//!
+//! /// Square a number if it's less than 10.
+//! #[context]
+//! fn square(num: usize) -> Result<usize, failure::Error> {
+//!     ensure!(num < 10, "Number was too large");
+//!     Ok(num * num)
+//! }
+//!
+//! fn main() -> Result<(), failure::Error> {
+//!     let args = std::env::args();
+//!     ensure!(args.len() == 2, "usage: square <num>");
+//!     let input = args.skip(1).next().unwrap().parse()?;
+//!
+//!     println!("result is {}", square(input)?);
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ```sh
+//! $ cargo run --example square 12
+//! Error: ErrorMessage { msg: "Number was too large" }
+//! Square a number if it's less than 10.
 //! ```
 
 #![forbid(unsafe_code, future_incompatible, rust_2018_idioms)]
@@ -55,7 +85,6 @@ pub fn context(_attr: TokenStream, item: TokenStream) -> TokenStream {
             input.span() => compile_error!("no doc comment provided")
         }),
     };
-
 
     let vis = &input.vis;
     let constness = &input.constness;
