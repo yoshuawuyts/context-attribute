@@ -68,7 +68,7 @@ pub fn context(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let result = quote! {
         #(#attrs)*
-        #vis #constness #unsafety #asyncness fn #generics #name(#(#inputs)*) #output {
+        #vis #constness #unsafety #asyncness #abi fn #generics #name(#(#inputs)*) #output {
             #(#body)*
         }
     };
