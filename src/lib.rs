@@ -41,17 +41,21 @@ use syn::spanned::Spanned;
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn context(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn context(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::ItemFn);
 
     let attrs = &input.attrs;
     let doc = attrs.iter().find(|attr| format!("{}", attr.path.segments.first().unwrap().value().ident) == "doc");
     let doc = match doc {
-        Some(doc) => doc,
+        Some(doc) => {
+            let mut iter = doc.clone().tts.into_iter().skip(1);
+            iter.next().unwrap()
+        },
         None => return TokenStream::from(quote_spanned! {
             input.span() => compile_error!("no doc comment provided")
         }),
     };
+
 
     let vis = &input.vis;
     let constness = &input.constness;
@@ -63,13 +67,22 @@ pub fn context(attr: TokenStream, item: TokenStream) -> TokenStream {
     let name = &input.ident;
     let inputs = &input.decl.inputs;
     let output = &input.decl.output;
-
     let body = &input.block.stmts;
+
+    let ret = match &output {
+        syn::ReturnType::Type(_, ret) => ret,
+        syn::ReturnType::Default => return TokenStream::from(quote_spanned! {
+            input.span() => compile_error!("must provide a return type of Result")
+        }),
+    };
 
     let result = quote! {
         #(#attrs)*
         #vis #constness #unsafety #asyncness #abi fn #generics #name(#(#inputs)*) #output {
-            #(#body)*
+            let __res__: #ret = try {
+                #(#body)*
+            };
+            Ok(__res__.context(#doc.trim())?)
         }
     };
 
