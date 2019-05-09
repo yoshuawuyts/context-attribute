@@ -4,6 +4,10 @@
 
 Set the error context using doc comments.
 
+This is useful because instead of writing manual error messages to provide context to an error, it
+automatically derives it from doc comments. This works especially well for async contexts, where
+stack traces may not be persisted past yield points and thread boundaries. But contexts do!
+
 - [Documentation][8]
 - [Crates.io][2]
 - [Releases][releases]
@@ -11,7 +15,25 @@ Set the error context using doc comments.
 ## Examples
 __Basic usage__
 ```rust
-// tbi
+use context_attribute::context;
+use failure::{ensure, ResultExt};
+
+/// Square a number if it's less than 10.
+#[context]
+fn square(num: usize) -> Result<usize, failure::Error> {
+    ensure!(num < 10, "Number was too large");
+    Ok(num * num)
+}
+
+fn main() -> Result<(), failure::Error> {
+    let args = std::env::args();
+    ensure!(args.len() == 2, "usage: square <num>");
+    let input = args.skip(1).next().unwrap().parse()?;
+
+    println!("result is {}", square(input)?);
+
+    Ok(())
+}
 ```
 
 ## Installation

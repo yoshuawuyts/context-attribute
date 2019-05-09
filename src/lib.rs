@@ -69,20 +69,20 @@ pub fn context(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let output = &input.decl.output;
     let body = &input.block.stmts;
 
-    let ret = match &output {
-        syn::ReturnType::Type(_, ret) => ret,
-        syn::ReturnType::Default => return TokenStream::from(quote_spanned! {
-            input.span() => compile_error!("must provide a return type of Result")
-        }),
-    };
+    let args: Vec<syn::Pat> = inputs.pairs().filter_map(|pair| {
+        match pair.into_value() {
+            syn::FnArg::Captured(arg) => Some(arg.pat.clone()),
+            _ => return None,
+        }
+    }).collect();
 
     let result = quote! {
         #(#attrs)*
         #vis #constness #unsafety #asyncness #abi fn #generics #name(#(#inputs)*) #output {
-            let __res__: #ret = try {
+            #constness #unsafety #asyncness #abi fn #generics #name(#(#inputs)*) #output {
                 #(#body)*
-            };
-            Ok(__res__.context(#doc.trim())?)
+            }
+            Ok(#name(#(#args)*).context(#doc.trim())?)
         }
     };
 
