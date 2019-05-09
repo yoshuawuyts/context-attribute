@@ -41,31 +41,35 @@ use syn::spanned::Spanned;
 /// }
 /// ```
 #[proc_macro_attribute]
-#[cfg(not(test))] // NOTE: exporting main breaks tests, we should file an issue.
 pub fn context(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::ItemFn);
 
-    let attrs = &input.attrs[0];
+    let attrs = &input.attrs;
+    let doc = attrs.iter().find(|attr| format!("{}", attr.path.segments.first().unwrap().value().ident) == "doc");
+    let doc = match doc {
+        Some(doc) => doc,
+        None => return TokenStream::from(quote_spanned! {
+            input.span() => compile_error!("no doc comment provided")
+        }),
+    };
+
+    let vis = &input.vis;
     let constness = &input.constness;
     let unsafety = &input.unsafety;
     let asyncness = &input.asyncness;
-    let args = &input.decl.inputs;
-    let ret = &input.decl.output;
+    let abi = &input.abi;
+
+    let generics = &input.decl.generics;
     let name = &input.ident;
-    let body = &input.block;
+    let inputs = &input.decl.inputs;
+    let output = &input.decl.output;
 
-    let inner_args: Vec<proc_macro2::Ident> = args.iter().map(|arg| {
-        dbg!(arg);
-        syn::Ident::new("self", proc_macro2::Span::call_site())
-    }).collect();
-
-    dbg!(inner_args);
+    let body = &input.block.stmts;
 
     let result = quote! {
-        #constness #unsafety #asyncness fn #name() #ret {
-            #input
-
-            #name()
+        #(#attrs)*
+        #vis #constness #unsafety #asyncness fn #generics #name(#(#inputs)*) #output {
+            #(#body)*
         }
     };
 
