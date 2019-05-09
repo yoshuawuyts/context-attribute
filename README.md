@@ -48,6 +48,30 @@ Square a number if it's less than 10.
 $ cargo add context-attribute
 ```
 
+## FAQ
+### What does the code expand to?
+Take this piece of code:
+```rust
+/// Read address.txt from disk
+#[context]
+pub fn read_file_2() -> Result<String, Error> {
+    Ok(std::fs::read_to_string("address.txt")?.trim().to_string())
+}
+```
+Any error that comes from it is tagged with the message `"Read address.txt from disk"`. To write it
+by hand we'd have to do:
+
+```rust
+/// Read address.txt from disk
+pub fn read_file_1() -> Result<String, Error> {
+    let res = std::fs::read_to_string("address.txt")
+        .context("Read address.txt from disk")?
+        .trim()
+        .to_string();
+    Ok(res)
+}
+```
+
 ## Safety
 This crate uses ``#![deny(unsafe_code)]`` to ensure everything is implemented in
 100% Safe Rust.
@@ -58,9 +82,6 @@ look at some of these issues:
 
 - [Issues labeled "good first issue"][good-first-issue]
 - [Issues labeled "help wanted"][help-wanted]
-
-## References
-None.
 
 ## License
 [MIT](./LICENSE-MIT) OR [Apache-2.0](./LICENSE-APACHE)
