@@ -46,7 +46,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::{quote, quote_spanned};
-use syn::spanned::Spanned;
+use syn::{spanned::Spanned, ReturnType};
 
 /// Use a doc comment to annotate the failure context of a function or try
 /// block.
@@ -75,45 +75,47 @@ pub fn context(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::ItemFn);
 
     let attrs = &input.attrs;
-    let doc = attrs.iter().find(|attr| format!("{}", attr.path.segments.first().unwrap().value().ident) == "doc");
+    let doc = attrs
+        .iter()
+        .find(|attr| format!("{}", attr.path.segments.first().unwrap().ident) == "doc");
     let doc = match doc {
         Some(doc) => {
-            let mut iter = doc.clone().tts.into_iter().skip(1);
+            let mut iter = doc.clone().tokens.into_iter().skip(1);
             iter.next().unwrap()
-        },
-        None => return TokenStream::from(quote_spanned! {
-            input.span() => compile_error!("no doc comment provided")
-        }),
+        }
+        None => {
+            return TokenStream::from(quote_spanned! {
+                input.span() => compile_error!("no doc comment provided")
+            })
+        }
     };
 
     let vis = &input.vis;
-    let constness = &input.constness;
-    let unsafety = &input.unsafety;
-    let asyncness = &input.asyncness;
-    let abi = &input.abi;
-
-    let generics = &input.decl.generics;
-    let name = &input.ident;
-    let inputs = &input.decl.inputs;
-    let output = &input.decl.output;
+    let sig = &input.sig;
     let body = &input.block.stmts;
-
-    let args: Vec<syn::Pat> = inputs.pairs().filter_map(|pair| {
-        match pair.into_value() {
-            syn::FnArg::Captured(arg) => Some(arg.pat.clone()),
-            _ => return None,
+    let output_type = match &input.sig.output {
+        ReturnType::Default => {
+            return TokenStream::from(quote_spanned! {
+                input.sig.output.span() => compile_error!("no return type provided")
+            })
         }
-    }).collect();
+
+        ReturnType::Type(_, ty) => &*ty,
+    };
 
     let result = quote! {
         #(#attrs)*
-        #vis #constness #unsafety #asyncness #abi fn #generics #name(#(#inputs)*) #output {
-            #constness #unsafety #asyncness #abi fn #generics #name(#(#inputs)*) #output {
+        #vis #sig {
+            let result: #output_type = {
                 #(#body)*
-            }
-            Ok(#name(#(#args)*).context(#doc.trim())?)
+            };
+
+            Ok(::failure::ResultExt::context(
+                result,
+                #doc.trim()
+            )?)
         }
     };
 
-    result.into()
+    TokenStream::from(result)
 }
