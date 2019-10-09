@@ -8,7 +8,7 @@
 //!
 //! ## Examples
 //!
-//! ```rust
+//! ```no_run
 //! use context_attribute::context;
 //! use failure::{ensure, ResultExt};
 //!
@@ -53,7 +53,7 @@ use syn::{spanned::Spanned, ReturnType};
 ///
 /// # Examples
 ///
-/// ```
+/// ```should_panic
 /// use context_attribute::context;
 /// use failure::{ensure, ResultExt};
 ///
@@ -61,13 +61,15 @@ use syn::{spanned::Spanned, ReturnType};
 ///     let _ = square(2)?;
 ///     let _ = square(5)?;
 ///     let _ = square(11)?;
+///
+///     Ok(())
 /// }
 ///
 /// /// Square a number if it's less than 10.
 /// #[context]
-/// fn square(num: usize) -> Result<String, >{
+/// fn square(num: usize) -> Result<usize, failure::Error>{
 ///     ensure!(num < 10, "Number was larger than 10");
-///     num * num
+///     Ok(num * num)
 /// }
 /// ```
 #[proc_macro_attribute]
