@@ -1,5 +1,5 @@
 use context_attribute::context;
-use failure::{ensure, ResultExt};
+use failure::ensure;
 
 /// Square a number if it's less than 10.
 #[context]
