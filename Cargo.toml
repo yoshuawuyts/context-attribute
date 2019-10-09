@@ -16,8 +16,8 @@ proc-macro = true
 
 [dependencies]
 failure = "0.1.5"
-syn = { version = "0.15", features = ["full", "extra-traits"] }
-proc-macro2 = { version = "0.4.24", features = ["nightly"] }
-quote = "0.6"
+syn = { version = "1.0.5", features = ["full"] }
+proc-macro2 = { version = "1.0.5" }
+quote = "1.0.2"
 
 [dev-dependencies]
