@@ -112,10 +112,7 @@ pub fn context(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #(#body)*
             };
 
-            Ok(::failure::ResultExt::context(
-                result,
-                #doc.trim()
-            )?)
+            Ok(result.context(#doc.trim())?)
         }
     };
 

@@ -1,5 +1,5 @@
 use context_attribute::context;
-use failure::ensure;
+use failure::{ensure, ResultExt};
 
 struct Counter(usize);
 
