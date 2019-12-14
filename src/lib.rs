@@ -8,7 +8,7 @@
 //!
 //! ## Examples
 //!
-//! ```rust
+//! ```no_run
 //! use context_attribute::context;
 //! use failure::{ensure, ResultExt};
 //!
@@ -46,14 +46,14 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::{quote, quote_spanned};
-use syn::spanned::Spanned;
+use syn::{spanned::Spanned, ReturnType};
 
 /// Use a doc comment to annotate the failure context of a function or try
 /// block.
 ///
 /// # Examples
 ///
-/// ```
+/// ```should_panic
 /// use context_attribute::context;
 /// use failure::{ensure, ResultExt};
 ///
@@ -61,59 +61,137 @@ use syn::spanned::Spanned;
 ///     let _ = square(2)?;
 ///     let _ = square(5)?;
 ///     let _ = square(11)?;
+///
+///     Ok(())
 /// }
 ///
 /// /// Square a number if it's less than 10.
 /// #[context]
-/// fn square(num: usize) -> Result<String, >{
+/// fn square(num: usize) -> Result<usize, failure::Error>{
 ///     ensure!(num < 10, "Number was larger than 10");
-///     num * num
+///     Ok(num * num)
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn context(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn context(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(item as syn::ItemFn);
 
-    let attrs = &input.attrs;
-    let doc = attrs.iter().find(|attr| format!("{}", attr.path.segments.first().unwrap().value().ident) == "doc");
-    let doc = match doc {
-        Some(doc) => {
-            let mut iter = doc.clone().tts.into_iter().skip(1);
-            iter.next().unwrap()
-        },
-        None => return TokenStream::from(quote_spanned! {
-            input.span() => compile_error!("no doc comment provided")
-        }),
+    let context_msg = {
+        match generate_context_msg(&attr, &input) {
+            Ok(msg) => msg,
+            Err(e) => {
+                panic!(e);
+            }
+        }
     };
 
+    let attrs = &input.attrs;
     let vis = &input.vis;
-    let constness = &input.constness;
-    let unsafety = &input.unsafety;
-    let asyncness = &input.asyncness;
-    let abi = &input.abi;
-
-    let generics = &input.decl.generics;
-    let name = &input.ident;
-    let inputs = &input.decl.inputs;
-    let output = &input.decl.output;
+    let sig = &input.sig;
     let body = &input.block.stmts;
-
-    let args: Vec<syn::Pat> = inputs.pairs().filter_map(|pair| {
-        match pair.into_value() {
-            syn::FnArg::Captured(arg) => Some(arg.pat.clone()),
-            _ => return None,
+    let output_type = match &input.sig.output {
+        ReturnType::Default => {
+            return TokenStream::from(quote_spanned! {
+                input.sig.output.span() => compile_error!("no return type provided")
+            })
         }
-    }).collect();
+
+        ReturnType::Type(_, ty) => &*ty,
+    };
 
     let result = quote! {
         #(#attrs)*
-        #vis #constness #unsafety #asyncness #abi fn #generics #name(#(#inputs)*) #output {
-            #constness #unsafety #asyncness #abi fn #generics #name(#(#inputs)*) #output {
+        #vis #sig {
+            let mut _fn = || {
                 #(#body)*
-            }
-            Ok(#name(#(#args)*).context(#doc.trim())?)
+            };
+
+            let result: #output_type = _fn();
+            Ok(result.context(#context_msg)?)
         }
     };
 
-    result.into()
+    TokenStream::from(result)
+}
+
+fn pick_doc(input: &syn::ItemFn) -> Result<String, String> {
+    let attrs = &input.attrs;
+    let doc = {
+        let doc = attrs
+            .iter()
+            .find(|attr| format!("{}", attr.path.segments.first().unwrap().ident) == "doc");
+        if let Some(doc) = doc {
+            doc
+        } else {
+            return Err(format!("could not find doc"));
+        }
+    };
+    let mut iter = doc.clone().tokens.into_iter().skip(1);
+    Ok(iter
+        .next()
+        .unwrap()
+        .to_string()
+        .trim_matches('"')
+        .trim()
+        .to_string())
+}
+
+fn pick_fn_name(input: &syn::ItemFn) -> String {
+    input.sig.ident.to_string()
+}
+
+#[derive(Debug)]
+enum ContextFormat {
+    Doc,
+    FnName,
+    Msg(String),
+}
+
+impl ContextFormat {
+    fn from(attr: &TokenStream) -> Result<Self, String> {
+        let attrs = attr.to_string().trim().to_owned();
+
+        if attrs.is_empty() {
+            return Ok(ContextFormat::Doc);
+        }
+
+        if attrs == "doc" {
+            return Ok(ContextFormat::Doc);
+        }
+
+        if attrs == "fn" {
+            return Ok(ContextFormat::FnName);
+        }
+
+        if attrs.contains(":") {
+            let v: Vec<&str> = attrs.split(":").collect();
+            let (name, msg) = (v[0], v[1]);
+            let msg = msg.trim().trim_matches('"').trim();
+            if name.trim() == "msg" {
+                return Ok(ContextFormat::Msg(msg.to_string()));
+            }
+            return Err(format!(
+                "invalid name {} only support format like msg : xxx now",
+                name
+            ));
+        }
+        return Err(format!("only support format like #[context]\n#[context(fn)]\n#[context(doc)]\n#[context(msg:xxx)]now"));
+    }
+}
+
+fn generate_context_msg(attr: &TokenStream, input: &syn::ItemFn) -> Result<String, String> {
+    let context_format = ContextFormat::from(attr)?;
+    match context_format {
+        ContextFormat::Doc => {
+            let doc = pick_doc(input)?;
+            return Ok(doc);
+        }
+        ContextFormat::FnName => {
+            let fn_name = pick_fn_name(input);
+            return Ok(format!("call {} fail", fn_name));
+        }
+        ContextFormat::Msg(msg) => {
+            return Ok(msg);
+        }
+    }
 }
